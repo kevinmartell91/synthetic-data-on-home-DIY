@@ -97,20 +97,20 @@ Five types/categories of prompt templates are used to genereate synthetic data f
 - **Realistic Scenarios**: Focus on common, real-world repair situations.
 
 ## Important considerations
-> ### **Diversity**
-> This diverse template approach ensures the synthetic data covers the full spectrum of home DIY repair scenarios while maintaining consistency in structure and quality.
+### **Diversity**
+> The diverse template approach ensures the synthetic data covers the full spectrum of home DIY repair scenarios while maintaining consistency in structure and quality.
 
-> ### **Validation Phase**
+### **Validation Phase**
 > The use Pydantic or jsonschema validates that outputs are structurally correct. Filter invalid entries before moving to error analysis. 
 
-> ### **Failure Labeling**
+### **Failure Labeling**
 > **Pandas DataFrame created**:
 > - with Trace ID (`auto-assigned`)
 > - all structured fields (e.g., answer, ...), and
-> - binary columns for each of the 6 failure modes ( `0 = success`, `1 = failure`)  
+> - binary columns for each of the 6 failure modes ( `0 = success`, `1 = failure`)
 
-> ### **Manually labeled 20 entries / use LLM auto-label common failures**. 
-> FAILURE MODES: 
+### **Manually labeled 20 entries / use LLM auto-label common failures**. 
+> **FAILURE MODES**: 
 >  - Incomplete Answer (`incomplete_answer`)
 >  - Safety Violations (`safety_violations`)
 >  - Unrealistic Tools (`unrealistic_tools`)
@@ -118,7 +118,7 @@ Five types/categories of prompt templates are used to genereate synthetic data f
 >  - Missing Context (`missing_context`)
 >  - Poor Quality Tips (`poor_quality_tips`).
 
-> ### **Analysis**
+### **Analysis**
 > - **Heatmap of failure modes**: used across samples created, which identifies the most common failure types, and
 > - **Correlations**: (e.g., `Overcomplicated Recipes` ↔ `Missing Equipment`)  
 
