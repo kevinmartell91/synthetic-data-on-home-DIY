@@ -3,7 +3,8 @@ Synthetic gnerator for DIY repair QA for repair resolution
 This module generates synthetic QA pair for LLM-as-judge evaluation.
 """
 
-import random, os
+from cmd import PROMPT
+import random, os, json
 
 # Try to load from .env file if it exists
 try:
@@ -45,7 +46,7 @@ client = OpenAI(
 
 
 class SyntheticGenerator:
-    """Generate a Synthtic generatetor class"""
+    """Generates a Synthtic generatetor class"""
 
     def __init__(self):
 
@@ -194,9 +195,6 @@ class SyntheticGenerator:
         except KeyError:
             raise ValueError(f"Invalid issue type: {issue_type}")
 
-    # notrace_io=True prevents logging the function arguments automatically,
-    # so we can log structured input/output ourselves.
-    @traced(type="llm", name="generate_varied_response", notrace_io=True)
     def generate_varied_response(
         self, user_query: str, issue_type: str, response_type: str
     ):
@@ -213,52 +211,83 @@ class SyntheticGenerator:
         )
         prompt += OutputStructure.model_json_schema().__str__()
 
-        try:
+        params = {
+            "max_tokens": 500,  # Increased max_tokens
+            "temperature": 0.7,  # Adjusted temperature slightly
+        }
 
-            params = {
-                "max_tokens": 500,  # Increased max_tokens
-                "temperature": 0.7,  # Adjusted temperature slightly
-            }
+        try:
+            #  OpenRouter LLM integration
             response = client.chat.completions.create(
                 model="openai/gpt-4.1-nano",
                 messages=[{"role": "user", "content": prompt}],
                 max_tokens=params["max_tokens"],
                 temperature=params["temperature"],
+                response_format="json",
             )
-            # Parse the response text into the Pydantic model
-            response_text = (
-                response.choices[0].message.content if response.choices else ""
-            )
-            usage = response.usage
 
-            #  OpenRouter LLM integration
-            if logger is not None:
-                try:
-                    current_span().log(
-                        input=[{"role": "user", "content": prompt}],
-                        output=response_text,
-                        metrics={
-                            "prompt_tokens": usage.prompt_tokens if usage else 0,
-                            "completion_tokens": (
-                                usage.completion_tokens if usage else 0
-                            ),
-                            "tokens": usage.total_tokens if usage else 0,
-                        },
-                        metadata={
-                            "user_query": user_query,
-                            "issue_type": issue_type,
-                            "response_type": response_type,
-                            **params,
-                        },
-                    )
-                except Exception as e:
-                    print(f"Warning: Failed to log to Braintrust: {e}")
-
-            return response_text
+            return prompt, response.choices[0].message.content, response.usage, params
 
         except Exception as e:
             print(f"Error generating response: [ERROR] - {e}")
             return "I appologize, but I'm having trouble processing your request right now."
+
+    # notrace_io=True prevents logging the function arguments automatically,
+    # so we can log structured input/output ourselves.
+    @traced(type="llm", name="generate_varied_response", notrace_io=True)
+    def log_braintrust(
+        self,
+        user_query: str,
+        issue_type: str,
+        response_type: str,
+        prompt: str,
+        llm_response: OutputStructure | dict,
+        usage: any,
+        params: any,
+    ):
+        if logger is not None:
+            try:
+                current_span().log(
+                    input=[{"role": "user", "content": prompt}],
+                    output=llm_response,
+                    metrics={
+                        "prompt_tokens": usage.prompt_tokens if usage else 0,
+                        "completion_tokens": (usage.completion_tokens if usage else 0),
+                        "tokens": usage.total_tokens if usage else 0,
+                    },
+                    metadata={
+                        "user_query": user_query,
+                        "issue_type": issue_type,
+                        "response_type": response_type,
+                        **params,
+                    },
+                    tags=[
+                        "synthetic_data",
+                        "diy_repair",
+                        f"issue_{issue_type}",
+                        f"response_{response_type}",
+                        "pydantic_as_text_format_output",
+                    ],
+                )
+            except Exception as e:
+                print(f"Warning: Failed to log to Braintrust: {e}")
+
+    def parse_llm_response(self, response: any) -> OutputStructure | None:
+        """Returns a OutputStructure (Pydantic) or a dict object"""
+
+        try:
+            response_data = json.loads(response)
+
+            if isinstance(response_data, dict):
+                # convert into pydantic object
+                response_data = OutputStructure(**response_data)
+
+        except Exception as e:
+            print(f"❌ {type(e).__name__}")
+
+        finally:
+            print(f"✅ LLm response parsed correctly.")
+            return response_data
 
     def generate_dataset(self, num_samples: int = 20) -> List[Dict[str, Any]]:
         """Generates a dataset of synthetic DIY repair QA pairs with especific number of samples"""
@@ -268,11 +297,14 @@ class SyntheticGenerator:
             response_type = random.choice(list(self.resolution_mode_prompts))
             user_query = self.generate_query(issue_type)
 
-            sample = self.generate_varied_response(
+            prompt, sample, usage, params = self.generate_varied_response(
                 user_query, issue_type, response_type
             )
 
-            # Ensure the sample is a dictionary before appending
+            #  parse as OutputStructure llm response
+            sample = self.parse_llm_response(sample)
+
+            # Ensure the sample is a OutputStructure type
             if isinstance(sample, OutputStructure):
                 dataset.append(sample.model_dump())
             elif isinstance(sample, dict):
@@ -280,13 +312,23 @@ class SyntheticGenerator:
             else:
                 print(f"Skipping invalid sample type: {type(sample)}")
 
+            self.log_braintrust(
+                user_query=user_query,
+                issue_type=issue_type,
+                response_type=response_type,
+                prompt=prompt,
+                llm_response=sample,
+                usage=usage,
+                params=params,
+            )
+
         return dataset
 
 
 def main():
 
     generator = SyntheticGenerator()
-    dataset = generator.generate_dataset(num_samples=3)
+    dataset = generator.generate_dataset(num_samples=1)
     print(dataset)
 
 
