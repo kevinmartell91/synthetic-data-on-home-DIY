@@ -3,7 +3,6 @@ Synthetic gnerator for DIY repair QA for repair resolution
 This module generates synthetic QA pair for LLM-as-judge evaluation.
 """
 
-from cmd import PROMPT
 import random, os, json
 
 # Try to load from .env file if it exists
@@ -16,8 +15,8 @@ except ImportError:
 
 from braintrust import current_span, init_logger, start_span, traced
 from openai import OpenAI
-from pydantic import BaseModel, Field, parse_obj_as
 from typing import Dict, List, Any
+from pydantic_classes import OutputStructure
 
 # Initialize Braintrust logger
 logger = init_logger(
@@ -26,21 +25,10 @@ logger = init_logger(
 )
 
 
-# declare the OutputStructure pydantic class
-class OutputStructure(BaseModel):
-    question: str = Field(description="The user's query")
-    answer: str = Field(description="Sythetic answer generated")
-    equipment_problem: str = Field(
-        description="Equipment required to solve the problem"
-    )
-    tools_required: str = Field(description="Tools required to solve the problem")
-    step: str = Field(description="Step by step instructions")
-    safety_info: str = Field(description=" Safety information is available")
-    tips: str = Field(description="Tips to solve the problem")
-
-
 client = OpenAI(
-    base_url="https://openrouter.ai/api/v1",
+    base_url="https://openrouter.ai/api/v1",  # used with openrouter throug openai SDK
+    # base_url="http://localhost:4000/",  # Your LiteLLM Proxy URL (Runnin in a local docker continer)
+    # api_key=os.getenv("LITE_LLM_VKEY_MINI_PRO_02") or "your_openrouter_api_key_here",
     api_key=os.getenv("OPENROUTER_API_KEY") or "your_openrouter_api_key_here",
 )
 
@@ -196,47 +184,45 @@ class SyntheticGenerator:
             raise ValueError(f"Invalid issue type: {issue_type}")
 
     def generate_varied_response(
-        self, user_query: str, issue_type: str, response_type: str
+        self,
+        user_query: str,
+        issue_type: str,
+        response_type: str,
+        params: Dict[str, Any],  # openrouter params for chat.completion
     ):
         """Generates different types of DIY responses based on user query and issue type"""
 
         prompt = self.templates.get(issue_type)
+        prompt += f"ISSUE TYPE: {issue_type}"
         prompt += f"\n\nUSER QUERY: {user_query}"
-        prompt += (
-            f"\n\nRESPONSE INSTRUCTIONS: {self.resolution_mode_prompts[response_type]}"
-        )
+        prompt += f"\n\nRESPONSE TYPE INSTRUCTIONS: {self.resolution_mode_prompts[response_type]}"
         prompt += "\n\nKeep response concise (2-4 sentences)."
         prompt += (
             "\n\nRespond in JSON format according to the following Pydantic schema:\n"
         )
-        prompt += OutputStructure.model_json_schema().__str__()
-
-        params = {
-            "max_tokens": 500,  # Increased max_tokens
-            "temperature": 0.7,  # Adjusted temperature slightly
-        }
+        prompt += "\n" + OutputStructure.model_json_schema().__str__()
 
         try:
             #  OpenRouter LLM integration
             response = client.chat.completions.create(
-                model="openai/gpt-4.1-nano",
+                model="openai/gpt-4.1-nano",  # used with openrouter throug openai SDK
+                # model="openrouter/openai/gpt-4.1-nano",  # used with LiteLLM (connect to openrouter api-throug liteLLM virtual-api-key)
                 messages=[{"role": "user", "content": prompt}],
-                max_tokens=params["max_tokens"],
-                temperature=params["temperature"],
-                response_format="json",
+                **params,
             )
 
-            return prompt, response.choices[0].message.content, response.usage, params
+            return (prompt, response.choices[0].message.content, response.usage)
 
         except Exception as e:
             print(f"Error generating response: [ERROR] - {e}")
-            return "I appologize, but I'm having trouble processing your request right now."
+            return (prompt, None, None)
 
     # notrace_io=True prevents logging the function arguments automatically,
     # so we can log structured input/output ourselves.
     @traced(type="llm", name="generate_varied_response", notrace_io=True)
     def log_braintrust(
         self,
+        id: int,
         user_query: str,
         issue_type: str,
         response_type: str,
@@ -245,45 +231,53 @@ class SyntheticGenerator:
         usage: any,
         params: any,
     ):
-        if logger is not None:
-            try:
-                current_span().log(
-                    input=[{"role": "user", "content": prompt}],
-                    output=llm_response,
-                    metrics={
-                        "prompt_tokens": usage.prompt_tokens if usage else 0,
-                        "completion_tokens": (usage.completion_tokens if usage else 0),
-                        "tokens": usage.total_tokens if usage else 0,
-                    },
-                    metadata={
-                        "user_query": user_query,
-                        "issue_type": issue_type,
-                        "response_type": response_type,
-                        **params,
-                    },
-                    tags=[
-                        "synthetic_data",
-                        "diy_repair",
-                        f"issue_{issue_type}",
-                        f"response_{response_type}",
-                        "pydantic_as_text_format_output",
-                    ],
-                )
-            except Exception as e:
-                print(f"Warning: Failed to log to Braintrust: {e}")
+        if logger is None:
+            raise ValueError("Braintrust logger not initialized")
+
+        try:
+            current_span().log(
+                input=[{"role": "user", "content": prompt}],
+                output=llm_response,
+                metrics={
+                    "prompt_tokens": usage.prompt_tokens if usage else 0,
+                    "completion_tokens": (usage.completion_tokens if usage else 0),
+                    "tokens": usage.total_tokens if usage else 0,
+                },
+                metadata={
+                    "id": id,
+                    "user_query": user_query,
+                    "issue_type": issue_type,
+                    "response_type": response_type,
+                    **params,
+                },
+                tags=[
+                    f"id_{id}",
+                    "synthetic_data",
+                    "diy_repair",
+                    f"issue_{issue_type}",
+                    f"response_{response_type}",
+                    "pydantic_as_text_format_output",
+                ],
+            )
+        except Exception as e:
+            print(f"Warning: Failed to log to Braintrust: {e}")
 
     def parse_llm_response(self, response: any) -> OutputStructure | None:
         """Returns a OutputStructure (Pydantic) or a dict object"""
 
+        response_data = None
+
         try:
             response_data = json.loads(response)
 
-            if isinstance(response_data, dict):
-                # convert into pydantic object
-                response_data = OutputStructure(**response_data)
+            if not isinstance(response_data, dict):
+                raise ValueError("Response is not a dictionary")
+            # convert into pydantic object
+            response_data = OutputStructure(**response_data)
+            print(f"✅ LLm response parsed correctly as Pydantic object.")
 
         except Exception as e:
-            print(f"❌ {type(e).__name__}")
+            print(f"❌ Parsing LLm response - {type(e).__name__}")
 
         finally:
             print(f"✅ LLm response parsed correctly.")
@@ -291,28 +285,46 @@ class SyntheticGenerator:
 
     def generate_dataset(self, num_samples: int = 20) -> List[Dict[str, Any]]:
         """Generates a dataset of synthetic DIY repair QA pairs with especific number of samples"""
+
         dataset = []
-        for _ in range(num_samples):
+
+        for idx, _ in enumerate(range(num_samples)):
             issue_type = random.choice(self.issue_types)
             response_type = random.choice(list(self.resolution_mode_prompts))
             user_query = self.generate_query(issue_type)
 
-            prompt, sample, usage, params = self.generate_varied_response(
-                user_query, issue_type, response_type
+            params = {
+                "max_tokens": 500,  # Increased max_tokens
+                "temperature": 0.7,  # Adjusted temperature slightly
+                # response_format="json", # not supported by LiteLLM, Openrouter does support it when used in conjuntion with other params
+            }
+
+            # generate llm response
+            prompt, sample, usage = self.generate_varied_response(
+                user_query, issue_type, response_type, params
             )
+            if sample is None:
+                print(f"Skipping sample {idx} due to connection error")
+                continue
 
             #  parse as OutputStructure llm response
             sample = self.parse_llm_response(sample)
+            if sample is None:
+                print(f"Skipping invalid sample: {sample}")
+                continue
 
             # Ensure the sample is a OutputStructure type
             if isinstance(sample, OutputStructure):
+                sample.id = idx
                 dataset.append(sample.model_dump())
             elif isinstance(sample, dict):
+                sample["id"] = idx
                 dataset.append(sample)
             else:
                 print(f"Skipping invalid sample type: {type(sample)}")
 
             self.log_braintrust(
+                id=idx,
                 user_query=user_query,
                 issue_type=issue_type,
                 response_type=response_type,
@@ -324,12 +336,26 @@ class SyntheticGenerator:
 
         return dataset
 
+    def save_dataset(
+        self, dataset: List[Dict[str, Any]], filename="diy_synthetic_dataset.json"
+    ):
+        with open(filename, mode="w", encoding="utf-8") as f:
+            json.dump(dataset, f, indent=2, ensure_ascii=False)
+            print(f"Dataset saved as {filename}")
+
 
 def main():
+    # Create directory if it doesn't exist
+    pass_number = "02"
+    folder_name = f"eval_pass_{pass_number}"
+    os.makedirs(folder_name, exist_ok=True)
 
     generator = SyntheticGenerator()
     dataset = generator.generate_dataset(num_samples=1)
-    print(dataset)
+
+    generator.save_dataset(
+        dataset, filename=os.path.join(folder_name, f"diy_synthetic_dataset.json")
+    )
 
 
 if __name__ == "__main__":
