@@ -6,6 +6,7 @@ from collections import defaultdict
 import json, os, re
 import statistics
 from typing import Counter, Dict, Any
+from failure_labeler import main as start_failure_labeler
 from pydantic_classes import OutputStructure, MissingFieldsCounter, MissingFieldsMetadataCounter
 from data_validator import DataValidator
 
@@ -16,7 +17,6 @@ class SyntheticDataAnalyzer:
         self,
         pass_number="01",
         dataset_filename: str = "diy_synthetic_dataset.json",
-        # failure_labeling_filename: str = "human_failure_labeling.json",
     ) -> None:
         # Get the directory where this script is located
         self.script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -25,10 +25,6 @@ class SyntheticDataAnalyzer:
         dataset_path = os.path.join(self.script_dir, self.pass_number, dataset_filename)
         dataset = self.load_dataset(dataset_path)
         self.dataset, _ = DataValidator().validate_dataset(dataset) if dataset else (None, None)
-
-        # self.manual_failure_labels = self.prepare_manual_failure_labeling_dataset(
-        #     filename=os.path.join(pass_number, failure_labeling_filename)
-        # )
 
     def load_dataset(self, filename: str):
         """Load synthetic dataset"""
@@ -47,36 +43,10 @@ class SyntheticDataAnalyzer:
             print(f"❌ Loading dataset {filename} - ERROR: {type(e).__name__}: {e}")
             return None
 
-    # Not used yet
-    def prepare_manual_failure_labeling_dataset(
-        self, filename: str = "human_failure_labeling.json"
-    ):
+    def prepare_failure_labeling_dataset(self):
+        """Prepare dataset for failure labeling"""
+        start_failure_labeler()
 
-        self.manual_failure_labels = self.load_dataset(
-            os.path.join(self.pass_number, filename)
-        )
-
-        if len(self.manual_failure_labels) != len(self.dataset):
-            raise ValueError(
-                f"❌ Manual labels (len: {len(self.manual_failure_labels)}) does not match synthetic dataset (len : {len(self.dataset)})"
-            )
-
-        labeled_datset = []
-        for sample in self.dataset:
-
-            labeled_sample = {
-                **sample,
-                **self.manual_failure_labels[str(sample["id"])],
-            }
-
-            labeled_datset.append(labeled_sample)
-
-        self.manual_failure_labels = labeled_datset
-
-        print(
-            "self.manual_failure_labels",
-            json.dumps(self.manual_failure_labels, indent=2),
-        )
 
     def evaluate_data_quality(self) -> Dict[str, Any]:
         """1️⃣ Data Quality Evaluation"""
@@ -415,7 +385,10 @@ class SyntheticDataAnalyzer:
 def main():
     analizer = SyntheticDataAnalyzer(pass_number="03")
         
-    # analizer.prepare_manual_failure_labeling_dataset()
+    # Auto label failure modes as .csv
+    analizer.prepare_failure_labeling_dataset()
+
+    # Run evaluation
     results = analizer.run_comprehensive_evaluation()
     print("results", json.dumps(results, indent=2))
 
