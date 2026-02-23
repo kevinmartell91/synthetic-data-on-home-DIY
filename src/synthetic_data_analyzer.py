@@ -7,6 +7,7 @@ import json, os, re
 import statistics
 from typing import Counter, Dict, Any
 from pydantic_classes import OutputStructure, MissingFieldsCounter, MissingFieldsMetadataCounter
+from data_validator import DataValidator
 
 
 class SyntheticDataAnalyzer:
@@ -17,14 +18,13 @@ class SyntheticDataAnalyzer:
         dataset_filename: str = "diy_synthetic_dataset.json",
         # failure_labeling_filename: str = "human_failure_labeling.json",
     ) -> None:
-
+        # Get the directory where this script is located
+        self.script_dir = os.path.dirname(os.path.abspath(__file__))
         self.pass_number = f"eval_pass_{pass_number}"
-
-        print("filename path",os.path.join("src",self.pass_number, dataset_filename))
-        print("filename hard", "src/eval_pass_02/diy_synthetic_dataset.json")
-        dataset = self.load_dataset(os.path.join("src", self.pass_number, dataset_filename))
         
-        self.dataset = [OutputStructure(**s) for s in dataset]
+        dataset_path = os.path.join(self.script_dir, self.pass_number, dataset_filename)
+        dataset = self.load_dataset(dataset_path)
+        self.dataset, _ = DataValidator().validate_dataset(dataset) if dataset else (None, None)
 
         # self.manual_failure_labels = self.prepare_manual_failure_labeling_dataset(
         #     filename=os.path.join(pass_number, failure_labeling_filename)
@@ -35,11 +35,16 @@ class SyntheticDataAnalyzer:
         try:
             with open(filename, mode="r", encoding="utf-8") as f:
                 dataset = json.load(f)
-                # print("self.dataset", dataset)
                 return dataset
 
+        except FileNotFoundError:
+            print(f"❌ Loading dataset {filename} - ERROR: File not found")
+            return None
+        except json.JSONDecodeError as e:
+            print(f"❌ Loading dataset {filename} - ERROR: Invalid JSON format - {e}")
+            return None
         except Exception as e:
-            print(f"❌ Loading dataset {filename} - ERROR: {type(e).__name__}")
+            print(f"❌ Loading dataset {filename} - ERROR: {type(e).__name__}: {e}")
             return None
 
     # Not used yet
@@ -408,16 +413,15 @@ class SyntheticDataAnalyzer:
 
 
 def main():
-    analizer = SyntheticDataAnalyzer(pass_number="02")
-    if not analizer.dataset:
-        raise ValueError("❌ No dataset loaded. Please check the path and filename.")   
+    analizer = SyntheticDataAnalyzer(pass_number="03")
         
     # analizer.prepare_manual_failure_labeling_dataset()
     results = analizer.run_comprehensive_evaluation()
     print("results", json.dumps(results, indent=2))
 
     # Save detailed results
-    path = os.path.join("src", analizer.pass_number, "synthetic_data_evaluation_results.json")
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    path = os.path.join(script_dir, analizer.pass_number, "synthetic_data_evaluation_results.json")
     with open(path, "w", encoding="utf-8") as f:
         json.dump(results, f, indent=2, ensure_ascii=False)
 
