@@ -2,10 +2,11 @@
 Defines the OutputStructure pydantic class
 """
 
-from typing import Literal, List, Optional, Dict
+from typing import Literal, List, Optional, Dict, Any, Union
 from pydantic import BaseModel, Field
 
 
+# Base class for synthetic data - this schema is passed to the llm
 class OutputStructureBase(BaseModel):
     question: str = Field(
         ..., description="A realistic DIY repair question from a homeowner"
@@ -33,22 +34,10 @@ class OutputStructureBase(BaseModel):
     )
 
 
-class DIYRepairSyntheticItem(OutputStructureBase):
-    id: str = Field(
-        ..., description="Unique ID for the item", examples=["qa_001", "qa_002"]
-    )
-
-
-class ItemProcessingMetadata(BaseModel):
-    prompt_template: str = Field(..., description="Which prompt template was used")
-    is_valid_schema: bool = Field(
-        ..., descripti="Whether the item passed structural validation"
-    )
-    failure_mode: str = Field(
-        decription="Which failure modes were flagged by the judge"
-    )
-    timestamp: str = Field(description="Timestamp")
-    model: str = Field(description="Model used")
+class MalformedOuputStructure(BaseModel):
+    error_message: str = Field(..., description="Error message")
+    malformed_json: str = Field(..., description="Malformed JSON")
+    timestamp: str = Field(..., description="Timestamp")
 
 
 class Metadata(BaseModel):
@@ -59,26 +48,65 @@ class Metadata(BaseModel):
         "hvac_repair",
         "general_home_repair",
     ] = Field(description="The issue type")
-    response_type: Literal[
-        "complete_solution",
-        "incomplete_answer",
-        "safety_violations",
-        "unrealistic_tools",
-        "overcomplicated_solution",
-        "missing_context",
-        "poor_quality_tips",
-    ] = Field(description="The response type")
+    user_query: str = Field(..., description="The user query")
+    # response_type: Literal[
+    #     "complete_solution",
+    #     "incomplete_answer",
+    #     "safety_violations",
+    #     "unrealistic_tools",
+    #     "overcomplicated_solution",
+    #     "missing_context",
+    #     "poor_quality_tips",
+    # ] = Field(description="The response type")
     # NEW FIELDS for better evaluation
-    difficulty_level: Literal["beginner", "intermediate", "advanced"] = Field(
-        default="beginner", description="Expected difficulty level"
+    # difficulty_level: Literal["beginner", "intermediate", "advanced"] = Field(
+    #     default="beginner", description="Expected difficulty level"
+    # )
+    # requires_professional: bool = Field(
+    #     default=False, description="Whether professional help is required"
+    # )
+    # estimated_time_minutes: int = Field(
+    #     default=30, description="Estimated time in minutes"
+    # )
+    # estimated_cost_usd: int = Field(default=50, description="Estimated cost in USD")
+
+
+class DIYRepairSyntheticItem(OutputStructureBase):
+    id: str = Field(
+        ..., description="Unique ID for the item", examples=["qa_001", "qa_002"]
     )
-    requires_professional: bool = Field(
-        default=False, description="Whether professional help is required"
+    metadata: Metadata = Field(description="Additional metadata", default=None)
+    error: None = None
+
+
+class DIYRepairSyntheticMalformedItem(OutputStructureBase):
+    id: str = Field(
+        ..., description="Unique ID for the item", examples=["qa_001", "qa_002"]
     )
-    estimated_time_minutes: int = Field(
-        default=30, description="Estimated time in minutes"
+    metadata: Metadata = Field(description="Additional metadata", default=None)
+    error: MalformedOuputStructure = Field(
+        description="Error from Phase 01_generation", default=None
     )
-    estimated_cost_usd: int = Field(default=50, description="Estimated cost in USD")
+    # overrride the fields to allow None
+    question: str | None = None
+    answer: str | None = None
+    equipment_problem: str | None = None
+    tools_required: List[str] | None = None
+    steps: List[str] | None = None
+    safety_info: str | None = None
+    tips: str | None = None
+
+
+class ItemProcessingMetadata(BaseModel):
+    prompt_template: str = Field(..., description="Which prompt template was used")
+    is_valid_schema: bool = Field(
+        ..., description="Whether the item passed structural validation"
+    )
+    failure_mode: str = Field(
+        description="Which failure modes were flagged by the judge"
+    )
+    timestamp: str = Field(description="Timestamp")
+    model: str = Field(description="Model used")
 
 
 class CriteriaScores(BaseModel):
@@ -150,23 +178,3 @@ class EvaluationReport(BaseModel):
     overall_assessment: OverallAssessment
     detailed_analysis: DetailedAnalysis
     sample_evaluations: List[SampleEvaluation]
-
-
-# Missing fields counter for Data Quality
-# ===================================================
-# Missing fields metadata details counter
-class MissingFieldsMetadataCounter(BaseModel):
-    # add a default value of 0 for all fields
-    issue_type: int = 0
-    response_type: int = 0
-
-
-class MissingFieldsCounter(BaseModel):
-    question: int = 0
-    answer: int = 0
-    equipment_problem: int = 0
-    tools_required: int = 0
-    step: int = 0
-    safety_info: int = 0
-    tips: int = 0
-    metadata: MissingFieldsMetadataCounter

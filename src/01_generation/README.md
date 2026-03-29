@@ -1,4 +1,4 @@
-# 🧱 Phase 1 = “LLM JSON sanity check”
+# Phase 1 = “LLM JSON sanity check”
 
 ```json
 {
@@ -38,3 +38,4 @@ so the phase can run reliably without manual setup.
 ```bash
 python -m 01_generation.run --num-samples 20
 ```
+

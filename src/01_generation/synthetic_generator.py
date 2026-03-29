@@ -4,8 +4,15 @@ This module generates synthetic QA pair for LLM-as-judge evaluation.
 """
 
 import random, json
-from typing import Dict, List, Any, Type, TypeVar, Optional, Tuple
-from pydantic_classes import DIYRepairSyntheticItem, OutputStructureBase
+from datetime import datetime
+from typing import Dict, List, Any, Type, TypeVar, Optional, Tuple, Union
+from pydantic_classes import (
+    DIYRepairSyntheticItem,
+    OutputStructureBase,
+    Metadata,
+    MalformedOuputStructure,
+    DIYRepairSyntheticMalformedItem,
+)
 from pydantic import BaseModel, ValidationError
 from pipeline_core.llm import chat as llm_chat
 from pipeline_core.utils import try_parse_json
@@ -61,7 +68,7 @@ class SyntheticGenerator:
         issue_type: str,
         params: Dict[str, Any],  # openrouter params for chat.completion
         schema: Type[T],
-    ) -> Optional[T] | None:
+    ) -> Tuple[Optional[T] | None, Optional[MalformedOuputStructure] | None]:
         """
         Generates different types of DIY responses based on user query and issue type
 
@@ -102,7 +109,11 @@ class SyntheticGenerator:
 
                 ok, data = try_parse_json(raw)
                 if not ok:
-                    last_error = f"[{self.phase_name}] JSON parse failed on attempt {attempt} for id: {id}"
+                    last_error = MalformedOuputStructure(
+                        error_message=f"[{self.phase_name}] JSON parse failed on attempt {attempt} for id: {id}",
+                        malformed_json=raw,
+                        timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    )
                     continue
 
                 try:
@@ -110,32 +121,39 @@ class SyntheticGenerator:
                         "[{self.phase_name}] Schema validation success for id: {id}",
                         schema.model_validate(data),
                     )
-
-                    return schema.model_validate(data)
+                    return (schema.model_validate(data), None)
 
                 except ValidationError as e:
-                    last_error = f"[{self.phase_name}] Schema validation failed in attempt {attempt}: {e}"
+                    last_error = MalformedOuputStructure(
+                        error_message=f"[{self.phase_name}] Schema validation failed in attempt {attempt}: [ERROR] - {e}",
+                        malformed_json=raw,
+                        timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    )
                     continue
 
             except Exception as e:
-                print(
-                    f"[{self.phase_name}] Error generating structured response: [ERROR] - {e}"
+                last_error = MalformedOuputStructure(
+                    error_message=f"[{self.phase_name}] Error generating structured response: [ERROR] - {e}",
+                    malformed_json=raw,
+                    timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 )
+                print(last_error)
                 continue
 
         # here all attempts failed
         print(
             f"[{self.phase_name}] Failed to generate structured response for id: {id} after {self.max_attemps} attempts. Last error: {last_error}"
         )
-        return None
+
+        return (None, last_error)
 
     def generate_synthetic_dataset(
         self, num_samples: int = 20
-    ) -> List[DIYRepairSyntheticItem]:
+    ) -> List[Union[DIYRepairSyntheticItem, DIYRepairSyntheticMalformedItem]]:
         """Generates a dataset of synthetic DIY repair QA pairs with especific number of samples"""
 
-        samples = []
-        failed_sample_items = []
+        valid_samples = []
+        failed_samples = []
 
         for idx, _ in enumerate(range(num_samples)):
             item_id = f"qa_{str(idx+1).zfill(3)}"
@@ -152,7 +170,7 @@ class SyntheticGenerator:
             }
 
             # generate llm response and log  with braintrust
-            item = self.generate_structured(
+            item, error = self.generate_structured(
                 id=item_id,
                 user_query=user_query,
                 issue_type=issue_type,
@@ -161,20 +179,23 @@ class SyntheticGenerator:
             )
 
             if item is not None:
-                item = DIYRepairSyntheticItem(id=item_id, **item.model_dump())
-                samples.append(item)
-
-            else:
-                # log failed sample for debugging
-                failed_sample_items.append(
-                    {
-                        "id": item_id,
-                        "user_query": user_query,
-                        "issue_type": issue_type,
-                    }
+                item = DIYRepairSyntheticItem(
+                    id=item_id,
+                    **item.model_dump(),
+                    metadata=Metadata(issue_type=issue_type, user_query=user_query),
+                    error=None,
                 )
+                valid_samples.append(item)
+
+            if error:
+                # log failed sample for debugging
+                failed_item = DIYRepairSyntheticMalformedItem(
+                    id=item_id,
+                    metadata=Metadata(issue_type=issue_type, user_query=user_query),
+                    error=error,
+                )
+                failed_samples.append(failed_item)
                 continue
 
-            # TODO: handle failed sample items
-
-        return samples
+        # return both successful and failed samples to be processed in Phase 02 Structural Validation
+        return valid_samples + failed_samples
