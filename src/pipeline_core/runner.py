@@ -48,7 +48,7 @@ class PhaseRunner:
         self.input_path = (
             Path(f"{DATA_DIR}/{input_phase}/output.json") if input_phase else None
         )
-        self.output_path = Path(f"{DATA_DIR}/{output_phase}/output_{timestamp()}.json")
+        self.output_path = Path(f"{DATA_DIR}/{output_phase}/output.json")
         self.run_fn = run_fn
         self.run_fn_kwargs = run_fn_kwargs or {}
 
