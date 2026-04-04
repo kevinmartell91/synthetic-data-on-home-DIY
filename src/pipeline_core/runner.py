@@ -73,6 +73,6 @@ class PhaseRunner:
         output_data = self.run_fn(input_data, **self.run_fn_kwargs)
 
         # 3. Save output
-        save_dataset(output_data, self.output_path)
-
-        print(f"✓ Output saved to: {self.output_path}\n")
+        if output_data != None:
+            save_dataset(output_data, self.output_path)
+            print(f"✓ Output saved to: {self.output_path}\n")
