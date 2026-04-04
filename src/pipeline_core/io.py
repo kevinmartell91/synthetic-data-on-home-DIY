@@ -32,9 +32,12 @@ def save_report(data: Any, path: Path | str, filename: str):
     payload = data.model_dump() if isinstance(data, BaseModel) else data
     out_dir = Path(path)
     out_dir.mkdir(parents=True, exist_ok=True)
+
     out_file = out_dir / filename
     with open(out_file, "w", encoding="utf-8") as f:
         json.dump(payload, f, indent=2, ensure_ascii=False)
+
+    print(f"\n💾 Saved failure statistics to {out_file}")
 
 
 def _to_jsonable(data: Any) -> Any:

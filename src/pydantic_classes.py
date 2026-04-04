@@ -6,6 +6,9 @@ from typing import Literal, List, Optional, Dict, Any, Union
 from pydantic import BaseModel, Field
 
 
+# =============================================================
+# Phase 01
+# =============================================================
 # Base class for synthetic data - this schema is passed to the llm
 class OutputStructureBase(BaseModel):
     question: str = Field(
@@ -97,6 +100,9 @@ class DIYRepairSyntheticMalformedItem(OutputStructureBase):
     tips: str | None = None
 
 
+# =============================================================
+# Phase 0N - Types not used fro now
+# =============================================================
 class ItemProcessingMetadata(BaseModel):
     prompt_template: str = Field(..., description="Which prompt template was used")
     is_valid_schema: bool = Field(
