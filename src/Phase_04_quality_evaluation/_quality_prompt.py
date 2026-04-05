@@ -17,12 +17,6 @@ overall_score = sum of 8 scores / 8.
 
 ---
 
-## GOLDEN REFERENCE (perfect score on both parts)
-
-{few_shot_examples}
-
----
-
 ## SAMPLE TO EVALUATE
 
 Question: {question}

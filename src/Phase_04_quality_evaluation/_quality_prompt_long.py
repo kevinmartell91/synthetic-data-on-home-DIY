@@ -11,12 +11,6 @@ Then score each dimension.
 
 ---
 
-# REFERENCE GOLDEN EXAMPLE (score = perfect on all dimensions)
-
-{few_shot_examples}
-
----
-
 # QUALITY DIMENSIONS
 
 Award 1 only if the sample fully meets the stated bar. 
