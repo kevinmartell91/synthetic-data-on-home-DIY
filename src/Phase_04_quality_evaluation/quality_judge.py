@@ -15,6 +15,7 @@ from ..pipeline_core.llm import chat as llm_chat
 from ..pipeline_core.utils import try_parse_json
 from braintrust import current_span, traced
 from ._quality_prompt import quality_prompt
+from ._few_shot_examples import few_shot_examples
 
 
 class QualityJudge:
@@ -33,6 +34,7 @@ class QualityJudge:
 
     def __init__(self, input_data: List[Dict[str, Any]]):
         self.phase_name = "04_quality_evaluation"
+        self.few_shot_examples = few_shot_examples
         self.samples = [DIYRepairWithFailureLabels(**item) for item in input_data]
         print(f"📊 Loaded {len(self.samples)} samples from Phase 03")
 
@@ -52,8 +54,16 @@ class QualityJudge:
                 "temperature": 0.2,
             }
 
-        sample_json = sample.model_dump_json(indent=2)
-        prompt = quality_prompt.replace("{sample_json}", sample_json)
+        prompt = quality_prompt.format(
+            few_shot_examples=self.few_shot_examples[sample.metadata.issue_type],
+            question=sample.question,
+            answer=sample.answer,
+            equipment_problem=sample.equipment_problem,
+            tools_required=sample.tools_required,
+            steps=sample.steps,
+            safety_info=sample.safety_info,
+            tips=sample.tips,
+        )
 
         try:
             raw_response = llm_chat(
