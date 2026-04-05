@@ -11,6 +11,7 @@ from .pydantic_classes import FailureJudgment, DIYRepairWithFailureLabels
 from ..pipeline_core.llm import chat as llm_chat
 from ..pipeline_core.utils import try_parse_json
 from braintrust import current_span, traced
+from ._few_shot_examples import few_shot_examples
 from ._judge_prompt import judge_prompt
 
 
@@ -30,6 +31,7 @@ class FailureJudge:
 
     def __init__(self, input_data: List[Dict[str, Any]]):
         self.phase_name = "03_failure_labeling"
+        self.few_shot_examples = few_shot_examples
         self.judge_prompt = self._create_judge_prompt()
         self.samples = [
             DIYRepairSyntheticItem(**item)
@@ -60,6 +62,8 @@ class FailureJudge:
         prompt = self.judge_prompt.format(
             question=sample.question or "N/A",
             answer=sample.answer or "N/A",
+            few_shot_examples=self.few_shot_examples[sample.metadata.issue_type]
+            or "N/A",
             equipment_problem=sample.equipment_problem or "N/A",
             tools_required=(
                 ", ".join(sample.tools_required) if sample.tools_required else "N/A"
@@ -95,17 +99,7 @@ class FailureJudge:
                 return None, raw_response
 
             # Extract only failure mode fields (filter out quality fields)
-            failure_data = {
-                "trace_id": sample.id,
-                "incomplete_answer": data.get("incomplete_answer", 0),
-                "safety_violations": data.get("safety_violations", 0),
-                "unrealistic_tools": data.get("unrealistic_tools", 0),
-                "overcomplicated_solution": data.get("overcomplicated_solution", 0),
-                "missing_context": data.get("missing_context", 0),
-                "poor_quality_tips": data.get("poor_quality_tips", 0),
-                "overall_failure": data.get("overall_failure", False),
-                "reasoning": data.get("reasoning", ""),
-            }
+            failure_data = {"trace_id": sample.id, **data}
 
             # Validate with Pydantic
             judgment = FailureJudgment(**failure_data)
