@@ -12,8 +12,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from typing import Dict, Any, List, Tuple
-from pipeline_core.utils import import_dual
-from Phase_04_quality_evaluation.pydantic_classes import DIYRepairWithQualityScores
+from ..Phase_04_quality_evaluation.pydantic_classes import DIYRepairWithQualityScores
 
 
 class CombinedAnalyzer:

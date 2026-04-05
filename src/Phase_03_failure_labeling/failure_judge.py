@@ -6,10 +6,10 @@ Evaluates each sample for 6 binary failure modes
 import json
 from typing import Dict, Any, Optional, Tuple, List
 from datetime import datetime
-from pydantic_classes import DIYRepairSyntheticItem
+from ..pydantic_classes import DIYRepairSyntheticItem
 from .pydantic_classes import FailureJudgment, DIYRepairWithFailureLabels
-from pipeline_core.llm import chat as llm_chat
-from pipeline_core.utils import try_parse_json
+from ..pipeline_core.llm import chat as llm_chat
+from ..pipeline_core.utils import try_parse_json
 from braintrust import current_span, traced
 from ._judge_prompt import judge_prompt
 
@@ -82,28 +82,12 @@ class FailureJudge:
 
         try:
             # Call LLM judge
-            # raw_response = llm_chat(
-            #     prompt=prompt,
-            #     params=params,
-            #     metadata=metadata,
-            # )
-            raw_response = """
-            {
-  "incomplete_answer": 0,
-  "metadata": {
-    "issue_type": "general_home_repair",
-    "user_query": "The cabinet door fell off because the hinge screws pulled out of the wood."
-  },
-  "missing_context": 0,
-  "overall_failure": false,
-  "overcomplicated_solution": 0,
-  "poor_quality_tips": 0,
-  "reasoning": "The answer is complete, addresses the problem directly, includes necessary safety precautions, and provides realistic tools and actionable steps that match the skill level of typical DIYers. Additionally, the tips provided are practical and improve the overall quality of the guidance.",
-  "safety_violations": 0,
-  "trace_id": "qa_004",
-  "unrealistic_tools": 0
-}
-"""
+            raw_response = llm_chat(
+                prompt=prompt,
+                params=params,
+                metadata=metadata,
+            )
+
             # Parse JSON
             ok, data = try_parse_json(raw_response)
             if not ok:

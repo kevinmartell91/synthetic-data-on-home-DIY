@@ -5,14 +5,14 @@ Evaluates each sample across 8 quality dimensions
 
 import json
 from typing import Dict, Any, Optional, Tuple, List
+from ..Phase_03_failure_labeling.pydantic_classes import DIYRepairWithFailureLabels
 from .pydantic_classes import (
-    DIYRepairWithFailureLabels,
     QualityJudgment,
     QualityScores,
     DIYRepairWithQualityScores,
 )
-from pipeline_core.llm import chat as llm_chat
-from pipeline_core.utils import try_parse_json
+from ..pipeline_core.llm import chat as llm_chat
+from ..pipeline_core.utils import try_parse_json
 from braintrust import current_span, traced
 from ._quality_prompt import quality_prompt
 
@@ -56,31 +56,15 @@ class QualityJudge:
         prompt = quality_prompt.replace("{sample_json}", sample_json)
 
         try:
-            # raw_response = llm_chat(
-            #     prompt=prompt,
-            #     params=params,
-            #     metadata={
-            #         "phase": self.phase_name,
-            #         "sample_id": sample.id,
-            #     },
-            # )
-            raw_response = """
-{
-  "overall_score": 1,
-  "quality_pass": true,
-  "quality_scores": {
-    "answer_coherence": 1,
-    "appropriate_scope": 1,
-    "category_accuracy": 0,
-    "problem_answer_alignment": 1,
-    "safety_specificity": 1,
-    "step_actionability": 1,
-    "tip_usefulness": 1,
-    "tool_realism": 1
-  },
-  "reasoning": "The answer is well-structured and logically flows, clearly addressing the running toilet issue while incorporating specific safety measures tailored to the repair. The tools mentioned are commonly owned by homeowners, and the steps provided are clear, actionable, and relevant. Moreover, the additional tip enhances the repair process, ensuring that every aspect aligns with the question and the nature of the repair is suitable for a DIY approach."
-}
-"""
+            raw_response = llm_chat(
+                prompt=prompt,
+                params=params,
+                metadata={
+                    "phase": self.phase_name,
+                    "sample_id": sample.id,
+                },
+            )
+
             ok, data = try_parse_json(raw_response)
             if not ok:
                 return None, raw_response

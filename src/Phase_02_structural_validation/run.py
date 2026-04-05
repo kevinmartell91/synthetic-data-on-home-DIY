@@ -1,7 +1,7 @@
 from typing import Any
-from pipeline_core.runner import PhaseRunner
-from pipeline_core.io import save_report
-from pydantic_classes import DIYRepairSyntheticItem
+from ..pipeline_core.runner import PhaseRunner
+from ..pipeline_core.io import save_report
+from ..pydantic_classes import DIYRepairSyntheticItem
 from .structure_validator import StructureValidator
 from .synthetic_analyzer import SyntheticAnalyzer
 
@@ -31,5 +31,5 @@ if __name__ == "__main__":
         input_phase="phase_01",
         output_phase="phase_02",
         run_fn=run_phase,
-        run_fn_kwargs={"output_path": "data/phase_02"},
+        run_fn_kwargs={"output_path": "src/data/phase_02"},
     ).run()

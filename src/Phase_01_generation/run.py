@@ -1,5 +1,5 @@
 import argparse
-from pipeline_core.runner import PhaseRunner
+from ..pipeline_core.runner import PhaseRunner
 from .synthetic_generator import SyntheticGenerator
 
 

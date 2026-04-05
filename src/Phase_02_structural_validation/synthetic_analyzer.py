@@ -6,7 +6,8 @@ from collections import defaultdict
 import json, os, re
 import statistics
 from typing import Counter, Dict, Any, List, Union
-from failure_labeler import main as start_failure_labeler
+
+# from failure_labeler import main as start_failure_labeler
 from .pydantic_classes import (
     CombinationAnalysis,
     DataQualityResults,
@@ -19,7 +20,7 @@ from .pydantic_classes import (
     QueryPatternAnalysis,
     CoverageSummary,
 )
-from pydantic_classes import (
+from ..pydantic_classes import (
     DIYRepairSyntheticItem,
     DIYRepairSyntheticMalformedItem,
     Metadata,
@@ -43,9 +44,9 @@ class SyntheticAnalyzer:
             )
         )
 
-    def prepare_failure_labeling_dataset(self):
-        """Prepare dataset for failure labeling"""
-        start_failure_labeler()
+    # def prepare_failure_labeling_dataset(self):
+    #     """Prepare dataset for failure labeling"""
+    #     start_failure_labeler()
 
     def evaluate_data_quality(self) -> DataQualityResults:
         """1️ Data Quality Evaluation"""
