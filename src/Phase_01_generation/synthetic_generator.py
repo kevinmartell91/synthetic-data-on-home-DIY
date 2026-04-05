@@ -6,7 +6,7 @@ This module generates synthetic QA pair for LLM-as-judge evaluation.
 import random, json
 from datetime import datetime
 from typing import Dict, List, Any, Type, TypeVar, Optional, Tuple, Union
-from pydantic_classes import (
+from ..pydantic_classes import (
     DIYRepairSyntheticItem,
     OutputStructureBase,
     Metadata,
@@ -14,8 +14,8 @@ from pydantic_classes import (
     DIYRepairSyntheticMalformedItem,
 )
 from pydantic import BaseModel, ValidationError
-from pipeline_core.llm import chat as llm_chat
-from pipeline_core.utils import try_parse_json
+from ..pipeline_core.llm import chat as llm_chat
+from ..pipeline_core.utils import try_parse_json
 from ._issue_types import *
 from ._templates import *
 from ._ai_generated_queries import *
@@ -117,10 +117,10 @@ class SyntheticGenerator:
                     continue
 
                 try:
-                    print(
-                        "[{self.phase_name}] Schema validation success for id: {id}",
-                        schema.model_validate(data),
-                    )
+                    # print(
+                    #     "[{self.phase_name}] Schema validation success for id: {id}",
+                    #     schema.model_validate(data),
+                    # )
                     return (schema.model_validate(data), None)
 
                 except ValidationError as e:

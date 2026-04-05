@@ -1,6 +1,5 @@
 from typing import Any, TypeVar, Type, Optional, Tuple, List
 from .pydantic_classes import ValidationResult
-from pipeline_core.io import save_report
 from pydantic import BaseModel, ValidationError
 
 T = TypeVar("T", bound=BaseModel)

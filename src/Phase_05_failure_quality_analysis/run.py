@@ -5,8 +5,8 @@ Aggregates failure modes and quality dimensions for diagnostic insights
 
 import os
 from typing import Any
-from pipeline_core.runner import PhaseRunner
-from pipeline_core.io import save_report
+from ..pipeline_core.runner import PhaseRunner
+from ..pipeline_core.io import save_report
 from .combined_analyzer import CombinedAnalyzer
 
 
@@ -34,5 +34,5 @@ if __name__ == "__main__":
         input_phase="phase_04",
         output_phase="phase_05",
         run_fn=run_phase,
-        run_fn_kwargs={"output_path": "data/phase_05"},
+        run_fn_kwargs={"output_path": "src/data/phase_05"},
     ).run()

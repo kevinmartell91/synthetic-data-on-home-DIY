@@ -4,8 +4,8 @@ Evaluates each sample using LLM-as-Judge for 6 binary failure modes
 """
 
 from typing import Any, List
-from pipeline_core.runner import PhaseRunner
-from pipeline_core.io import save_report
+from ..pipeline_core.runner import PhaseRunner
+from ..pipeline_core.io import save_report
 from .failure_judge import FailureJudge
 from .failure_analyzer import FailureAnalyzer
 
@@ -45,5 +45,5 @@ if __name__ == "__main__":
         input_phase="phase_02",
         output_phase="phase_03",
         run_fn=run_phase,
-        run_fn_kwargs={"output_path": "data/phase_03"},
+        run_fn_kwargs={"output_path": "src/data/phase_03"},
     ).run()

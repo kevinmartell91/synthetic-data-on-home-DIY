@@ -1,6 +1,6 @@
 import importlib
 from pydantic import BaseModel
-from Phase_03_failure_labeling.pydantic_classes import DIYRepairWithFailureLabels
+from ..Phase_03_failure_labeling.pydantic_classes import DIYRepairWithFailureLabels
 
 
 class QualityScores(BaseModel):

@@ -56,8 +56,8 @@ def _to_jsonable(data: Any) -> Any:
 def save_dataset(data: Any, path: Path):
     """Save dataset payloads that can include nested models/lists/dicts."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    # payload = _to_jsonable(data)
+    payload = _to_jsonable(data)
 
     with open(path, "w", encoding="utf-8") as f:
-        json.dump([i.model_dump() for i in data], f, indent=2, ensure_ascii=False)
-        # json.dump(payload, f, indent=2, ensure_ascii=False)
+        # json.dump([i.model_dump() for i in data], f, indent=2, ensure_ascii=False)
+        json.dump(payload, f, indent=2, ensure_ascii=False)

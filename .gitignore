@@ -8,3 +8,4 @@ __pycache__
 data/
 eval_pass_*/
 migrated_files/
+_docs/

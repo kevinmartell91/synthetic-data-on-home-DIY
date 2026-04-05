@@ -6,7 +6,7 @@ import time, os
 from typing import Dict, Any, Optional
 from openai import OpenAI
 from braintrust import init_logger, traced, current_span
-from pipeline_core.utils import timestamp
+from .utils import timestamp
 
 
 # Try to load from .env file if it exists
