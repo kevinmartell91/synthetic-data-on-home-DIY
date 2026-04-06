@@ -32,7 +32,7 @@ class OutputStructureBase(BaseModel):
     safety_info: str = Field(
         ..., description="Relevant safety warnings and precautions"
     )
-    tips: str = Field(
+    tips: List[str] = Field(
         description="Practical tips to make the repair easier or more reliable"
     )
 
