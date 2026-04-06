@@ -64,4 +64,9 @@ if [[ "$RUN_PHASES" == "all" || "$RUN_PHASES" == "analysis" ]]; then
     echo -e "${GREEN}✅ Phase 05 Complete${NC}\n"
 fi
 
-
+# Phase 07: Benchmark Comparison
+if [[ "$RUN_PHASES" == "all" || "$RUN_PHASES" == "benchmark" ]]; then
+    echo -e "${GREEN}[Phase 07] Validating judge on benchmark dataset...${NC}"
+    python -m src.Phase_07_benchmark_comparison.run
+    echo -e "${GREEN}✅ Phase 07 Complete${NC}\n"
+fi
