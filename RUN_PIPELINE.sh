@@ -4,7 +4,7 @@
 # Usage: bash RUN_PIPELINE.sh [num_samples] [run_phases]
 #   num_samples: Number of samples to generate (default: 50)
 #   run_phases: Which phases to run (default: "all")
-#              Options: "baseline" (1-4), "analysis" (5,7), "improve" (6), "all" (1-7)
+#              Options: "baseline" (1-4), "analysis" (5,7), "improve" (6), "all" (1-7), "benchmark" (7)
 
 set -e
 
@@ -62,6 +62,13 @@ if [[ "$RUN_PHASES" == "all" || "$RUN_PHASES" == "analysis" ]]; then
     echo -e "${GREEN}[Phase 05] Analyzing failure-quality correlations...${NC}"
     python -m src.Phase_05_failure_quality_analysis.run
     echo -e "${GREEN}✅ Phase 05 Complete${NC}\n"
+fi
+
+# Phase 06: Prompt Correction
+if [[ "$RUN_PHASES" == "all" || "$RUN_PHASES" == "improve" ]]; then
+    echo -e "${GREEN}[Phase 06] Correcting prompts based on failure analysis...${NC}"
+    python -m src.Phase_06_prompt_correction.run
+    echo -e "${GREEN}✅ Phase 06 Complete${NC}\n"
 fi
 
 # Phase 07: Benchmark Comparison
